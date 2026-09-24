@@ -178,8 +178,10 @@ calling the vendor's own public commissioning API through its own
 official SDK, just without going through a UI screen the app doesn't
 provide.
 
-**Frida scripts for this step**: [`scripts/frida/`](scripts/frida/) — to be
-added (see status note at the top of this file).
+**Frida scripts for this step**: [`scripts/frida/`](scripts/frida/) —
+`open_commissioning_window.js` (with `find_controller.js` as a fallback if
+a future app update obfuscates the controller class). See that directory's
+[README](scripts/frida/README.md) for the full step-by-step.
 
 ## Not affiliated with Adeo / Leroy Merlin / Enki / CSA
 
