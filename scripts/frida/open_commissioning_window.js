@@ -14,7 +14,10 @@
  *     running as root
  *   - Enki app signed into your account, with the fan already commissioned BY
  *     THIS app instance (so it is the fabric admin for that device)
- *   - the fan's detail page OPEN in Enki (establishes a live CASE session)
+ *   - the Enki process that commissioned the fan STILL RUNNING (never closed
+ *     or restarted since): Enki only keeps a live ChipDeviceController right
+ *     after commissioning. Check first: `avahi-browse -rt _matter._tcp` must
+ *     list an Android_<hex>.local record (the phone's own controller).
  *
  * Run (ATTACH, do not spawn):
  *   frida-ps -U | grep -i enki                 # note the PID
@@ -23,6 +26,7 @@
  * Get the fan's node ID from its operational mDNS record:
  *   avahi-browse -rt _matter._tcp
  *   # instance is "<compressed-fabric-id>-<NODE_ID>"; take the NODE_ID (2nd hex group)
+ *   # of the fan record whose fabric prefix matches the Android_<hex>.local record
  *
  * In ECM you choose the passcode and discriminator yourself; the onSuccess
  * callback returns the corresponding standard Matter manual pairing code and
@@ -31,7 +35,7 @@
 
 // ---- configure ----
 var PACKAGE       = "com.leroymerlin.enki";
-var NODE_ID       = "0x0000000000000000"; // fan node ID from _matter._tcp
+var NODE_ID       = "0x0000000000000000"; // fan node ID on the Enki fabric (see README)
 var DURATION_S    = 300;                   // window lifetime, seconds
 var ITERATION     = 1000;                  // SPAKE2+ PBKDF iterations (1000..10000)
 var DISCRIMINATOR = 3840;                  // 12-bit, your choice
@@ -45,10 +49,11 @@ Java.perform(function () {
 
   var nodeId = int64(NODE_ID);                         // > 2^53, must be int64
   var pin    = Java.use("java.lang.Long").valueOf(PASSCODE);
+  var SFX    = Date.now();       // unique class names -> the script can be re-run
 
   // Result callback: hands back the manual pairing code + QR payload directly.
   var Occ = Java.registerClass({
-    name: "org.interop.OccCb",
+    name: "org.interop.OccCb" + SFX,
     implements: [Java.use(OCC_IFACE)],
     methods: {
       onError:   function (status, dev) { console.log("[!] OpenCommissioning onError status=" + status); },
@@ -63,7 +68,7 @@ Java.perform(function () {
 
   // CASE connection callback: on success, open the ECM window.
   var Conn = Java.registerClass({
-    name: "org.interop.ConnCb",
+    name: "org.interop.ConnCb" + SFX,
     implements: [Java.use(CONN_IFACE)],
     methods: {
       onDeviceConnected: function (devicePtr) {
@@ -84,7 +89,10 @@ Java.perform(function () {
     onMatch: function (inst) { if (!globalThis.__CTRL) globalThis.__CTRL = inst; },
     onComplete: function () {
       if (!globalThis.__CTRL) {
-        console.log("[!] No live " + CTRL_CLASS + " instance. Open the fan's page in Enki, then retry.");
+        console.log("[!] No live " + CTRL_CLASS + " instance.");
+        console.log("    Enki only keeps one right after commissioning: the process that");
+        console.log("    commissioned the fan is gone. Re-commission the fan in Enki, then");
+        console.log("    attach again WITHOUT restarting the app (see README, key rule).");
         console.log("    If the class was renamed by an app update, run find_controller.js first.");
         return;
       }
