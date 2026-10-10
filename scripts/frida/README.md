@@ -37,13 +37,15 @@ session.
 frida --version                      # note the version, e.g. 17.18.0
 
 # One-time: push a matching server. Download frida-server-<VER>-android-arm64.xz
-# from https://github.com/frida/frida/releases, then:
+# from https://github.com/frida/frida/releases (android-arm64, NOT linux-arm64), then:
 unxz frida-server-<VER>-android-arm64.xz
 adb push frida-server-<VER>-android-arm64 /data/local/tmp/frida-server
 adb shell su -c 'chmod 755 /data/local/tmp/frida-server'
 
-# Each session: launch it as root, detached
-adb shell su -c '/data/local/tmp/frida-server -D'
+# Each session: launch it as root, detached. The redirection matters: without
+# it, adb keeps the session open (the daemon still holds its stdout/stderr) and
+# the command never returns.
+adb shell "su -c '/data/local/tmp/frida-server -D >/dev/null 2>&1'"
 # If your ROM kills it, use setsid instead:
 #   adb shell su -c "setsid /data/local/tmp/frida-server >/dev/null 2>&1 &"
 
@@ -51,8 +53,19 @@ adb shell su -c '/data/local/tmp/frida-server -D'
 frida-ps -U | grep -i enki
 ```
 
-If `frida` reports `unable to connect to remote frida-server: closed`, the
-server is not running — relaunch it with the commands above.
+Troubleshooting:
+
+- `unable to connect to remote frida-server: closed` → the server is not
+  running; relaunch it with the commands above.
+- `Unable to start: Error binding to address 127.0.0.1:27042: Address already
+  in use` → it is already running; nothing to do.
+- `/system/bin/sh: /data/local/tmp/frida-server: No such file or directory`
+  although the push succeeded → you pushed the `linux-arm64` build. It needs
+  glibc's loader, which Android doesn't have; push `android-arm64` instead.
+- Several phones plugged in (`adb: more than one device`) → target the rooted
+  one explicitly: `export ANDROID_SERIAL=<serial from adb devices>` (or
+  `adb -s <serial>`) for adb, and `-D <serial>` instead of `-U` for
+  `frida` / `frida-ps`.
 
 ## Key rule: commission, then Frida — in the same Enki process
 

@@ -181,7 +181,8 @@ provide.
 **Frida scripts for this step**: [`scripts/frida/`](scripts/frida/) —
 `open_commissioning_window.js` (with `find_controller.js` as a fallback if
 a future app update obfuscates the controller class). See that directory's
-[README](scripts/frida/README.md) for the full step-by-step.
+[README](scripts/frida/README.md) for the full step-by-step, including how
+to install and start `frida-server` on the phone.
 
 ## Not affiliated with Adeo / Leroy Merlin / Enki / CSA
 
